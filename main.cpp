@@ -33,7 +33,8 @@ int main() {
         [](int value) {
             std::cout << "   Timer 1 fired! Value: " << value << "\n";
         },
-        42
+        42,
+        3
     );
     std::cout << "   Timer ID: " << id1 << "\n\n";
     

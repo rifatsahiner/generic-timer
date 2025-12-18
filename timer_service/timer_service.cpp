@@ -47,15 +47,31 @@ void TimerService::worker_() {
         
         if (it->first <= now) {
             // Timer expired, execute callback
-            auto callback = std::move(it->second.callback);
+            auto data = std::move(it->second);
             timers_.erase(it);
-            
-            // Execute callback without holding the lock
+
+            // Release the lock before executing the callback and re-scheduling the timer
             lock.unlock();
-            callback();
+            // Restart the timer if requested
+            if(data.repeat != 0) {
+                if(data.repeat > 0) {
+                    data.repeat--;
+                }
+                schedule_until(it->first + data.period, std::move(data));
+            }
+
+            // Execute callback
+            data.callback();
         } else {
             // Wait until next timer expires or notification
             cv_.wait_until(lock, it->first);
         }
     }
+}
+
+TimerService::TimerId TimerService::schedule_until(std::chrono::steady_clock::time_point expiry, TimerData&& data) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    timers_.emplace(expiry, data);
+    cv_.notify_one(); // Wake up worker thread
+    return data.id;
 }
